@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Office Flooding — LCD Demo</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main>
+    <div id="game-wrapper">
+      <div id="console">
+        <!-- Console background fills the wrapper -->
+        <img id="console-bg" src="img/OFFICE%20FLOODING%20BG.jpg" alt="console background">
+
+          <!-- LCD container positioned with CSS percentages -->
+            <div id="lcd">
+          <!-- SVG root: placeholder is present so the game can run; loadSvg.js
+            will attempt to replace its contents with the real SVG from img/. -->
+          <div id="svg-root">
+          <svg id="lcd-sheet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" preserveAspectRatio="xMidYMid meet" role="img">
+            <defs>
+              <style> .seg { fill:black; opacity:0; transition: opacity 120ms linear; } </style>
+            </defs>
+
+            <!-- Player positions (man-0..man-4) small circles as placeholders -->
+            <g id="player">
+              <circle id="man-0" class="seg" cx="30" cy="80" r="6" />
+              <circle id="man-1" class="seg" cx="100" cy="80" r="6" />
+              <circle id="man-2" class="seg" cx="140" cy="80" r="6" />
+              <circle id="man-3" class="seg" cx="180" cy="80" r="6" />
+              <circle id="man-4" class="seg" cx="220" cy="80" r="6" />
+            </g>
+
+            <!-- Bucket water placeholders -->
+            <g id="buckets">
+              <rect id="bucketwater-1" class="seg" x="92" y="88" width="12" height="6" />
+              <rect id="bucketwater-2" class="seg" x="132" y="88" width="12" height="6" />
+              <rect id="bucketwater-3" class="seg" x="172" y="88" width="12" height="6" />
+              <rect id="bucketwater-4" class="seg" x="212" y="88" width="12" height="6" />
+            </g>
+
+            <!-- Drops: 4 columns × 4 stages -->
+            <g id="drops">
+              <!-- column 1 -->
+              <circle id="droplet-1-1" class="seg" cx="100" cy="28" r="3" />
+              <circle id="droplet-1-2" class="seg" cx="100" cy="44" r="3" />
+              <circle id="droplet-1-3" class="seg" cx="100" cy="60" r="3" />
+              <circle id="droplet-1-4" class="seg" cx="100" cy="76" r="3" />
+              <!-- column 2 -->
+              <circle id="droplet-2-1" class="seg" cx="140" cy="28" r="3" />
+              <circle id="droplet-2-2" class="seg" cx="140" cy="44" r="3" />
+              <circle id="droplet-2-3" class="seg" cx="140" cy="60" r="3" />
+              <circle id="droplet-2-4" class="seg" cx="140" cy="76" r="3" />
+              <!-- column 3 -->
+              <circle id="droplet-3-1" class="seg" cx="180" cy="28" r="3" />
+              <circle id="droplet-3-2" class="seg" cx="180" cy="44" r="3" />
+              <circle id="droplet-3-3" class="seg" cx="180" cy="60" r="3" />
+              <circle id="droplet-3-4" class="seg" cx="180" cy="76" r="3" />
+              <!-- column 4 -->
+              <circle id="droplet-4-1" class="seg" cx="220" cy="28" r="3" />
+              <circle id="droplet-4-2" class="seg" cx="220" cy="44" r="3" />
+              <circle id="droplet-4-3" class="seg" cx="220" cy="60" r="3" />
+              <circle id="droplet-4-4" class="seg" cx="220" cy="76" r="3" />
+            </g>
+
+            <!-- Cracks, water, HUD, etc. (placeholders) -->
+            <rect id="crack1" class="seg" x="96" y="8" width="6" height="6" />
+            <rect id="crack2" class="seg" x="136" y="8" width="6" height="6" />
+            <rect id="crack3" class="seg" x="176" y="8" width="6" height="6" />
+            <rect id="crack4" class="seg" x="216" y="8" width="6" height="6" />
+
+            <rect id="water" class="seg" x="0" y="140" width="320" height="12" />
+            <rect id="water-toilet" class="seg" x="10" y="140" width="40" height="12" />
+
+            <g id="lives">
+              <circle id="life1" class="seg" cx="280" cy="16" r="4" />
+              <circle id="life2" class="seg" cx="292" cy="16" r="4" />
+              <circle id="life3" class="seg" cx="304" cy="16" r="4" />
+            </g>
+
+            <text id="new" class="seg" x="40" y="20" font-size="8">NEW</text>
+            <text id="game" class="seg" x="80" y="20" font-size="8">GAME</text>
+            <text id="over" class="seg" x="120" y="20" font-size="8">OVER</text>
+
+            <rect id="toilet" class="seg" x="12" y="88" width="8" height="8" />
+            <rect id="mushroom" class="seg" x="250" y="120" width="12" height="8" />
+            <rect id="mushrooms-1" class="seg" x="266" y="120" width="8" height="6" />
+            <rect id="mushrooms-2" class="seg" x="276" y="118" width="8" height="6" />
+            <rect id="mushrooms-3" class="seg" x="286" y="120" width="8" height="6" />
+          </svg>
+          </div>
+
+          <!-- The PNG is now embedded inside the inlined SVG for exact masking/alignment. -->
+
+          <div id="score-display">
+            <span class="score-label">SCORE</span>
+            <span class="score-value">00</span>
+          </div>
+        </div>
+
+        <!-- Side Controls (left/right) — visible buttons for touch/mouse -->
+        <button id="leftBtn" class="side-btn left" aria-label="Left">◀</button>
+        <button id="rightBtn" class="side-btn right" aria-label="Right">▶</button>
+        <!-- Debug toggle and info -->
+        <button id="debugToggle" title="Toggle LCD debug" style="position:absolute;top:6%;right:10%;z-index:60;padding:8px 10px;">🐞</button>
+        <button id="cycleToggle" title="Cycle segments" style="position:absolute;top:6%;right:3%;z-index:60;padding:8px 10px;">▶</button>
+        <div id="lcd-info" aria-hidden="true" style="position:absolute;left:4%;top:4%;z-index:60;backdrop-filter:blur(4px);background:rgba(0,0,0,0.45);color:#fff;padding:6px 8px;border-radius:6px;font-family:monospace;font-size:12px;display:none;">lcd: —</div>
+        <button id="startBtn" class="start-btn" type="button">START</button>
+        <!-- Alignment panel for fine-tuning embedded image -->
+        <div id="align-panel" style="position:absolute;left:4%;bottom:6%;z-index:70;background:rgba(0,0,0,0.6);padding:8px;border-radius:6px;color:#fff;font-family:monospace;font-size:12px;display:none;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <label style="white-space:nowrap">X:<input id="align-x" type="number" step="1" style="width:64px;margin-left:6px"/></label>
+            <label style="white-space:nowrap">Y:<input id="align-y" type="number" step="1" style="width:64px;margin-left:6px"/></label>
+            <label style="white-space:nowrap">W:<input id="align-w" type="number" step="1" style="width:64px;margin-left:6px"/></label>
+            <label style="white-space:nowrap">H:<input id="align-h" type="number" step="1" style="width:64px;margin-left:6px"/></label>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+            <label style="white-space:nowrap">Preserve:<select id="align-par" style="margin-left:6px"><option>none</option><option>xMinYMin meet</option><option>xMidYMid meet</option><option>xMidYMid slice</option></select></label>
+            <button id="align-reset" style="margin-left:8px;padding:4px 8px">Reset</button>
+            <button id="align-apply" style="margin-left:4px;padding:4px 8px">Apply</button>
+          </div>
+          <div id="align-hint" style="opacity:0.85;font-size:11px">Tip: use debug to see outlines; tweak values then "Apply".</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="segments.js"></script>
+  <script type="module" src="config.js"></script>
+  <script type="module" src="gameState.js"></script>
+  <script type="module" src="render.js"></script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
