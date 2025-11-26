@@ -102,26 +102,7 @@
         <!-- Side Controls (left/right) — visible buttons for touch/mouse -->
         <button id="leftBtn" class="side-btn left" aria-label="Left">◀</button>
         <button id="rightBtn" class="side-btn right" aria-label="Right">▶</button>
-        <!-- Debug toggle and info -->
-        <button id="debugToggle" title="Toggle LCD debug" style="position:absolute;top:6%;right:10%;z-index:60;padding:8px 10px;">🐞</button>
-        <button id="cycleToggle" title="Cycle segments" style="position:absolute;top:6%;right:3%;z-index:60;padding:8px 10px;">▶</button>
-        <div id="lcd-info" aria-hidden="true" style="position:absolute;left:4%;top:4%;z-index:60;backdrop-filter:blur(4px);background:rgba(0,0,0,0.45);color:#fff;padding:6px 8px;border-radius:6px;font-family:monospace;font-size:12px;display:none;">lcd: —</div>
         <button id="startBtn" class="start-btn" type="button">START</button>
-        <!-- Alignment panel for fine-tuning embedded image -->
-        <div id="align-panel" style="position:absolute;left:4%;bottom:6%;z-index:70;background:rgba(0,0,0,0.6);padding:8px;border-radius:6px;color:#fff;font-family:monospace;font-size:12px;display:none;">
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-            <label style="white-space:nowrap">X:<input id="align-x" type="number" step="1" style="width:64px;margin-left:6px"/></label>
-            <label style="white-space:nowrap">Y:<input id="align-y" type="number" step="1" style="width:64px;margin-left:6px"/></label>
-            <label style="white-space:nowrap">W:<input id="align-w" type="number" step="1" style="width:64px;margin-left:6px"/></label>
-            <label style="white-space:nowrap">H:<input id="align-h" type="number" step="1" style="width:64px;margin-left:6px"/></label>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-            <label style="white-space:nowrap">Preserve:<select id="align-par" style="margin-left:6px"><option>none</option><option>xMinYMin meet</option><option>xMidYMid meet</option><option>xMidYMid slice</option></select></label>
-            <button id="align-reset" style="margin-left:8px;padding:4px 8px">Reset</button>
-            <button id="align-apply" style="margin-left:4px;padding:4px 8px">Apply</button>
-          </div>
-          <div id="align-hint" style="opacity:0.85;font-size:11px">Tip: use debug to see outlines; tweak values then "Apply".</div>
-        </div>
       </div>
     </div>
   </main>

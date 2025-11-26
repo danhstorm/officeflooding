@@ -1,15 +1,10 @@
-// main.js — gameplay state machine, input, loop, and debug helpers
 import { createInitialState, GamePhase } from './gameState.js';
 import { GAME_CONFIG } from './config.js';
-import { render, initRender, clearAllSegments, segOn, getActiveSegments, setDebugVisuals, setAlignmentGrid } from './render.js';
-import { SEGMENTS, ALL_SEGMENT_IDS } from './segments.js';
+import { render, initRender } from './render.js';
+import { SEGMENTS } from './segments.js';
 import { SVG_READY } from './loadSvg.js';
 
 let state = createInitialState();
-let debugEnabled = false;
-let cycleTimer = null;
-let cycleIndex = 0;
-let cycleActive = false;
 let audioCtx = null;
 
 const dom = {
@@ -52,13 +47,6 @@ const SOUND_PRESETS = {
   score: { freq: 950, duration: 0.12, type: 'triangle', gain: 0.08 },
 };
 
-const LCD_VAR_DEFAULTS = Object.freeze({
-  left: '24.5%',
-  top: '26%',
-  width: '51%',
-  height: '43%'
-});
-
 function bindUi(){
   cacheDom();
   window.addEventListener('keydown', handleKey, { passive: false });
@@ -66,13 +54,6 @@ function bindUi(){
   dom.rightBtn?.addEventListener('pointerdown', ()=>{ moveRight(); });
   dom.startBtn?.addEventListener('click', ()=> requestStartGame());
 
-  const debugBtn = document.getElementById('debugToggle');
-  const cycleBtn = document.getElementById('cycleToggle');
-  debugBtn?.addEventListener('click', ()=> setDebugState(!debugEnabled));
-  cycleBtn?.addEventListener('click', ()=> setCycleMode(!cycleActive));
-
-  initAlignmentPanel();
-  setDebugState(false);
   updateScoreHud();
 }
 
@@ -181,7 +162,7 @@ function update(now){
       updateStarting(now);
       break;
     case GamePhase.PLAYING:
-      if(!cycleActive) updatePlaying(now);
+      updatePlaying(now);
       break;
     case GamePhase.GAME_OVER:
       updateGameOver(now);
@@ -600,54 +581,8 @@ function cryptoRandomId(){
 function loop(now){
   if(!state.lastFrameTime) state.lastFrameTime = now;
   update(now);
-  if(!cycleActive) render(state);
-  if(debugEnabled) updateDebugHud();
+  render(state);
   requestAnimationFrame(loop);
-}
-
-function setCycleMode(enabled){
-  if(enabled === cycleActive) return;
-  cycleActive = enabled;
-  if(cycleActive){
-    clearInterval(cycleTimer);
-    cycleIndex = 0;
-    cycleTimer = setInterval(()=>{
-      const id = ALL_SEGMENT_IDS[cycleIndex % ALL_SEGMENT_IDS.length];
-      cycleIndex++;
-      clearAllSegments();
-      segOn(id);
-    }, 220);
-  } else {
-    if(cycleTimer){ clearInterval(cycleTimer); cycleTimer = null; }
-    clearAllSegments();
-    render(state);
-  }
-  const cycleBtn = document.getElementById('cycleToggle');
-  if(cycleBtn) cycleBtn.textContent = cycleActive ? '■' : '▶';
-}
-
-function setDebugState(enabled){
-  debugEnabled = enabled;
-  document.getElementById('lcd')?.classList.toggle('debug', enabled);
-  const info = document.getElementById('lcd-info');
-  if(info) info.style.display = enabled ? 'block' : 'none';
-  const panel = document.getElementById('align-panel');
-  if(panel) panel.style.display = enabled ? 'block' : 'none';
-  setDebugVisuals(enabled);
-  setAlignmentGrid(enabled, 64);
-  updateDebugHud();
-}
-
-function updateDebugHud(){
-  if(!debugEnabled) return;
-  const info = document.getElementById('lcd-info');
-  if(!info) return;
-  const lcd = document.getElementById('lcd');
-  const rect = lcd ? lcd.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
-  const segments = getActiveSegments();
-  const lcdVars = readLcdMetrics();
-  const vp = `${window.innerWidth}x${window.innerHeight}`;
-  info.textContent = `phase:${state.phase} lcd@(${Math.round(rect.left)},${Math.round(rect.top)}) ${Math.round(rect.width)}x${Math.round(rect.height)} | vp ${vp} | segments ${segments.join(', ') || 'none'} | lcd vars L:${lcdVars.left} T:${lcdVars.top} W:${lcdVars.width} H:${lcdVars.height}`;
 }
 
 function ensureAudioContext(){
@@ -685,76 +620,6 @@ function createTone(freq, duration, type, gainValue, startTime){
   osc.connect(gain).connect(audioCtx.destination);
   osc.start(startTime);
   osc.stop(startTime + duration + 0.05);
-}
-
-function initAlignmentPanel(){
-  const panel = document.getElementById('align-panel');
-  if(!panel) return;
-  const inX = document.getElementById('align-x');
-  const inY = document.getElementById('align-y');
-  const inW = document.getElementById('align-w');
-  const inH = document.getElementById('align-h');
-  const inPAR = document.getElementById('align-par');
-  const btnApply = document.getElementById('align-apply');
-  const btnReset = document.getElementById('align-reset');
-
-  function refresh(){
-    const cur = readLcdMetrics();
-    inX.value = percentToNumber(cur.left);
-    inY.value = percentToNumber(cur.top);
-    inW.value = percentToNumber(cur.width);
-    inH.value = percentToNumber(cur.height);
-    inPAR.value = 'none';
-  }
-
-  btnApply?.addEventListener('click', ()=>{
-    const vals = {
-      left: numberToPercent(inX.value),
-      top: numberToPercent(inY.value),
-      width: numberToPercent(inW.value),
-      height: numberToPercent(inH.value)
-    };
-    applyLcdMetrics(vals);
-    refresh();
-  });
-
-  btnReset?.addEventListener('click', ()=>{
-    applyLcdMetrics(LCD_VAR_DEFAULTS);
-    refresh();
-  });
-
-  SVG_READY.then(()=> setTimeout(refresh, 32)).catch(()=>{});
-}
-
-function readLcdMetrics(){
-  const styles = window.getComputedStyle(document.documentElement);
-  return {
-    left: styles.getPropertyValue('--lcd-left').trim() || LCD_VAR_DEFAULTS.left,
-    top: styles.getPropertyValue('--lcd-top').trim() || LCD_VAR_DEFAULTS.top,
-    width: styles.getPropertyValue('--lcd-width').trim() || LCD_VAR_DEFAULTS.width,
-    height: styles.getPropertyValue('--lcd-height').trim() || LCD_VAR_DEFAULTS.height,
-  };
-}
-
-function applyLcdMetrics(vals){
-  const root = document.documentElement;
-  if(vals.left) root.style.setProperty('--lcd-left', vals.left);
-  if(vals.top) root.style.setProperty('--lcd-top', vals.top);
-  if(vals.width) root.style.setProperty('--lcd-width', vals.width);
-  if(vals.height) root.style.setProperty('--lcd-height', vals.height);
-  if(!cycleActive) render(state);
-}
-
-function numberToPercent(value){
-  const num = Number(value);
-  if(Number.isFinite(num)) return `${num}%`;
-  return null;
-}
-
-function percentToNumber(value){
-  if(typeof value !== 'string') return '';
-  const num = parseFloat(value);
-  return Number.isFinite(num) ? num : '';
 }
 
 if(typeof document !== 'undefined'){

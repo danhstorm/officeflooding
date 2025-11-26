@@ -2,17 +2,11 @@
 import { SEGMENTS, ALL_SEGMENT_IDS } from './segments.js';
 
 const SEGMENT_PREFIX = 'segment-';
-const DEBUG_LAYER_ID = 'mask-debug-layer';
-const GRID_LAYER_ID = 'lcd-alignment-grid';
 const activeSegments = new Set();
 let reportedMissingSegments = false;
 
 function segmentElement(id){
   return document.getElementById(SEGMENT_PREFIX + id) || document.getElementById(id);
-}
-
-export function getActiveSegments(){
-  return Array.from(activeSegments);
 }
 
 export function segOn(id){
@@ -93,7 +87,12 @@ export function render(state){
     }
   }
 
-  if(Array.isArray(state.crackWarnings)){
+  if(state.gameOver){
+    // When game is over, show all cracks
+    SEGMENTS.cracks.forEach(id => {
+      if(id) segOn(id);
+    });
+  } else if(Array.isArray(state.crackWarnings)){
     state.crackWarnings.forEach((on, idx) => {
       if(on){
         const id = SEGMENTS.cracks[idx];
@@ -149,83 +148,4 @@ export function initRender(){
     console.warn('[render] Missing LCD segment nodes:', missing);
   }
   activeSegments.clear();
-}
-
-export function setDebugVisuals(enabled){
-  const svg = document.querySelector('#svg-root svg');
-  if(!svg) return;
-  const ns = 'http://www.w3.org/2000/svg';
-  let layer = svg.querySelector('#' + DEBUG_LAYER_ID);
-  if(!enabled){
-    if(layer) layer.remove();
-    return;
-  }
-  if(!layer){
-    layer = document.createElementNS(ns, 'g');
-    layer.setAttribute('id', DEBUG_LAYER_ID);
-    layer.setAttribute('pointer-events', 'none');
-    svg.appendChild(layer);
-  }
-  layer.innerHTML = '';
-  ALL_SEGMENT_IDS.forEach(id => {
-    const source = svg.getElementById ? svg.getElementById(id) : svg.querySelector('#' + cssEscape(id));
-    if(!source) return;
-    try{
-      const outline = source.cloneNode(true);
-      outline.removeAttribute('id');
-      outline.setAttribute('data-debug-outline', id);
-      outline.setAttribute('fill', 'none');
-      outline.setAttribute('stroke', 'rgb(0,255,180)');
-      outline.setAttribute('stroke-width', '6');
-      outline.setAttribute('opacity', '0.65');
-      layer.appendChild(outline);
-    }catch(err){ /* noop */ }
-  });
-}
-
-export function setAlignmentGrid(enabled, spacing = 32){
-  const svg = document.querySelector('#svg-root svg');
-  if(!svg) return;
-  const ns = 'http://www.w3.org/2000/svg';
-  let grid = svg.querySelector('#' + GRID_LAYER_ID);
-  if(!enabled){
-    if(grid) grid.remove();
-    return;
-  }
-  if(grid) grid.remove();
-  grid = document.createElementNS(ns, 'g');
-  grid.setAttribute('id', GRID_LAYER_ID);
-  grid.setAttribute('pointer-events', 'none');
-
-  const vb = svg.viewBox && svg.viewBox.baseVal;
-  const width = vb && vb.width ? vb.width : (svg.clientWidth || 320);
-  const height = vb && vb.height ? vb.height : (svg.clientHeight || 160);
-
-  for(let x = 0; x <= width; x += spacing){
-    const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', x);
-    line.setAttribute('y1', 0);
-    line.setAttribute('x2', x);
-    line.setAttribute('y2', height);
-    line.setAttribute('stroke', x % (spacing * 4) === 0 ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.18)');
-    line.setAttribute('stroke-width', x % (spacing * 4) === 0 ? '1.2' : '0.6');
-    grid.appendChild(line);
-  }
-
-  for(let y = 0; y <= height; y += spacing){
-    const line = document.createElementNS(ns, 'line');
-    line.setAttribute('x1', 0);
-    line.setAttribute('y1', y);
-    line.setAttribute('x2', width);
-    line.setAttribute('y2', y);
-    line.setAttribute('stroke', y % (spacing * 4) === 0 ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.18)');
-    line.setAttribute('stroke-width', y % (spacing * 4) === 0 ? '1.2' : '0.6');
-    grid.appendChild(line);
-  }
-
-  svg.appendChild(grid);
-}
-
-function cssEscape(id){
-  return id.replace(/([\W])/g, '\\$1');
 }
