@@ -1,6 +1,6 @@
 import { createInitialState, GamePhase } from './gameState.js';
 import { GAME_CONFIG } from './config.js';
-import { render, initRender, clearAllSegments } from './render.js';
+import { render, initRender } from './render.js';
 import { SEGMENTS } from './segments.js';
 import { SVG_READY } from './loadSvg.js';
 
