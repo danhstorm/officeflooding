@@ -38,21 +38,33 @@ export function clearAllSegments(){
 export function render(state){
   if(!document.body || !state) return;
   clearAllSegments();
+  const hideToilet = !!state.hideToilet;
+  const hidePlayer = !!state.hidePlayer;
 
-  if(state.phase === 'attract'){
-    renderAttract(state);
+  if(state.timeReportActive){
+    renderTimeReport(state);
     applyText(state.textDisplay);
     return;
   }
 
-  const pos = Math.max(0, Math.min(SEGMENTS.playerPositions.length - 1, Number(state.playerPos || 0)));
-  const playerId = SEGMENTS.playerPositions[pos];
-  if(playerId) segOn(playerId);
+  if(state.phase === 'attract'){
+    renderAttract(state, hideToilet, hidePlayer);
+    applyText(state.textDisplay);
+    return;
+  }
 
-  const bucketPos = Number.isInteger(state.playerPos) ? state.playerPos : null;
-  if(state.bucketFilled && bucketPos && bucketPos >= 1 && bucketPos <= 4){
-    const id = SEGMENTS.bucketWaterByPos[bucketPos];
-    if(id) segOn(id);
+  if(!hidePlayer){
+    const pos = Math.max(0, Math.min(SEGMENTS.playerPositions.length - 1, Number(state.playerPos || 0)));
+    const playerId = SEGMENTS.playerPositions[pos];
+    if(playerId) segOn(playerId);
+  }
+
+  if(!hidePlayer){
+    const bucketPos = Number.isInteger(state.playerPos) ? state.playerPos : null;
+    if(state.bucketFilled && bucketPos && bucketPos >= 1 && bucketPos <= 4){
+      const id = SEGMENTS.bucketWaterByPos[bucketPos];
+      if(id) segOn(id);
+    }
   }
 
   if(Array.isArray(state.drops)){
@@ -72,9 +84,9 @@ export function render(state){
     else segOff(id);
   });
 
-  segOn(SEGMENTS.toilet);
+  if(!hideToilet) segOn(SEGMENTS.toilet);
 
-  if(state.bucketDump && state.bucketDump.active){
+  if(!hideToilet && state.bucketDump && state.bucketDump.active){
     const staticWater = SEGMENTS.staticWater || [];
     const toiletWater = staticWater.find(id => id === 'water-toilet');
     if(toiletWater) segOn(toiletWater);
@@ -112,12 +124,25 @@ export function render(state){
   applyText(state.textDisplay);
 }
 
-function renderAttract(state){
-  SEGMENTS.playerPositions.forEach(id => segOn(id));
+function renderAttract(state, hideToilet, hidePlayer){
+  if(!hidePlayer){
+    const pos = Math.max(0, Math.min(SEGMENTS.playerPositions.length - 1, Number(state.playerPos || 0)));
+    const playerId = SEGMENTS.playerPositions[pos];
+    if(playerId) segOn(playerId);
+  }
   SEGMENTS.drops.forEach(col => {
     if(col[0]) segOn(col[0]);
   });
-  segOn(SEGMENTS.toilet);
+  if(!hideToilet) segOn(SEGMENTS.toilet);
+}
+
+function renderTimeReport(state){
+  const unlocked = Array.isArray(state.mushroomsUnlocked) && state.mushroomsUnlocked.length
+    ? state.mushroomsUnlocked
+    : (SEGMENTS.mushrooms || []);
+  unlocked.forEach(id => {
+    if(id) segOn(id);
+  });
 }
 
 function applyText(display = {}){

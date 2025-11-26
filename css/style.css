@@ -9,6 +9,8 @@
 /* Full-viewport stage with centered console that preserves image aspect */
 :root{
   --console-aspect: calc(3427 / 2262);
+  --console-scale: 0.75;
+  --console-offset: clamp(20px, 6vw, 140px);
   --lcd-left: 0%;
   --lcd-top: 0%;
   --lcd-width: 100%;
@@ -27,7 +29,7 @@ html,body{
   touch-action:none;
   background-color:#0d0d0d;
   background-image:url('../img/background.png');
-  background-size:cover;
+  background-size:1760px auto;
   background-repeat:no-repeat;
   background-position:left top;
   background-attachment:fixed;
@@ -40,6 +42,7 @@ main{
   width:100%;
   display:flex;
   justify-content:center;
+  position:relative;
 }
 
 #game-wrapper{
@@ -58,14 +61,29 @@ main{
    original image aspect ratio (set to your SVG/viewBox ratio). We use the
    min() trick so the console fits both narrow and short viewports. */
 #console{
-  width:min(92vw, calc(92vh * var(--console-aspect)));
+  width:min(calc(92vw * var(--console-scale)), calc(92vh * var(--console-aspect) * var(--console-scale)));
   max-width:100%;
   aspect-ratio:var(--console-aspect);
-  max-height:92vh;
+  max-height:calc(92vh * var(--console-scale));
   position:relative;
+  z-index:10;
   filter:drop-shadow(0 20px 40px rgba(0,0,0,0.45));
   isolation:isolate;
   margin:0 auto;
+  transform:translateX(var(--console-offset));
+  transition:transform 180ms ease-out;
+}
+
+#console-bg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center var(--console-bg-y);
+  display:block;
+  user-select:none;
+  z-index:1;
 }
 
 /* Make the background cover the console box so it can crop at bottom if needed */
@@ -83,17 +101,6 @@ main{
   pointer-events:none;
 }
 
-#console-bg{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  object-position:center var(--console-bg-y);
-  display:block;
-  user-select:none;
-}
-
 /* LCD area positioned in % relative to the wrapper */
 #lcd{
   position:absolute;
@@ -101,6 +108,7 @@ main{
   width:100%;
   height:100%;
   pointer-events:none;
+  z-index:10;
 }
 
 /* SVG inside should stretch to fill lcd box */
@@ -127,27 +135,6 @@ main{
   pointer-events:none;
 }
 
-/* Side buttons for touch/mouse input */
-.side-btn{
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0,0,0,0.6);
-  color: white;
-  font-size: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  touch-action: manipulation;
-  z-index: 30;
-}
-.side-btn.left{ left: 2%; }
-.side-btn.right{ right: 2%; }
-
 /* LCD overlay blending + opacity to let background texture show through */
 #lcd-overlay{
   mix-blend-mode: darken;
@@ -159,8 +146,8 @@ main{
 
 #lcd #score-display{
   position:absolute;
-  left:26.1%;
-  top:33.8%;
+  left:28%;
+  top:30%;
   z-index:65;
   display:flex;
   flex-direction:column;
@@ -177,7 +164,7 @@ main{
 #lcd #score-display .score-label,
 #lcd #score-display .score-value{
   display:block;
-  width:100%;
+  width:55%;
   padding-left:2px;
 }
 
@@ -190,6 +177,10 @@ main{
   text-align:left;
 }
 
+#lcd #score-display .score-label.is-hidden{
+  display:none;
+}
+
 #lcd #score-display .score-value{
   font-family:"DigitalNumbers", "Share Tech Mono", "DS-Digital", "Digital-7 Mono", "Roboto Mono", monospace;
   font-size:clamp(0.9em, 2.9vw, 1.45em);
@@ -199,43 +190,168 @@ main{
   align-self:stretch;
   text-align:right;
   padding-right:4px;
+  white-space:nowrap;
 }
 
-.start-btn{
+#lcd #score-display .score-value.is-message{
+  width:100%;
+  padding:0;
+  text-align:center;
+  white-space:pre-line;
+  letter-spacing:0.18em;
+}
+
+#button-lights{
   position:absolute;
-  left:50%;
-  bottom:8%;
-  transform:translateX(-50%);
-  z-index:75;
-  padding:10px 24px;
-  font-family:monospace;
-  font-size:16px;
-  letter-spacing:0.2em;
-  background:rgba(0,0,0,0.7);
-  color:#fff;
-  border:1px solid rgba(255,255,255,0.4);
-  border-radius:999px;
-  cursor:pointer;
-  transition:opacity 120ms ease;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+  z-index:5;
 }
 
-.start-btn.hidden{
+#button-lights svg,
+#button-lights .button-lights-svg{
+  width:100%;
+  height:100%;
+  display:block;
+}
+
+#button-lights image{
   opacity:0;
+  transition:opacity 130ms ease-out;
+  mix-blend-mode:screen;
   pointer-events:none;
 }
 
-.start-btn:focus-visible{
-  outline:2px solid #8ef;
-  outline-offset:2px;
+#button-lights image.is-active{
+  opacity:1;
 }
 
-@media (max-width:520px){
-  .side-btn{ width:48px;height:48px;font-size:20px }
+.console-btn{
+  position:absolute;
+  border:none;
+  background:transparent;
+  padding:0;
+  margin:0;
+  cursor:pointer;
+  touch-action:manipulation;
+  z-index:25;
+  appearance:none;
 }
+
+.console-btn:focus-visible{
+  outline:2px solid rgba(255,255,255,0.65);
+  outline-offset:4px;
+}
+
+#btn-left{
+  left:6.4%;
+  top:64.9%;
+  width:11%;
+  height:16.4%;
+  border-radius:50%;
+}
+
+#btn-right{
+  left:82.35%;
+  top:65.05%;
+  width:11%;
+  height:16.4%;
+  border-radius:50%;
+}
+
+#btn-game,
+#btn-time,
+#btn-alarm{
+  left:85.85%;
+  width:5.6%;
+  height:4.4%;
+  border-radius:22px;
+}
+
+#btn-game{ top:32.5%; }
+#btn-time{ top:25.6%; }
+#btn-alarm{ top:18.7%; }
 
 /* Hidden-by-default SVG segments; scripts toggle via style.display */
 .lcd-seg{ display:none }
 
 @media (max-width:520px){
   #controls button{ font-size:18px; padding:10px 18px }
+  #console{ transform:none; }
+}
+
+
+#highscore-panel{
+  position:fixed;
+  top:620px;
+  left:25px;
+  width:210px;
+  color:#186595;
+  font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+  font-size:14px;
+  line-height:1.15;
+  letter-spacing:0.07em;
+  text-transform:uppercase;
+  pointer-events:none;
+  z-index:3;
+  transform:rotate(-7deg);
+  transform-origin:top left;
+}
+
+#highscore-panel h2{
+  margin:0 0 8px;
+  font-size:16px;
+  font-weight:600;
+  letter-spacing:0.12em;
+  position:relative;
+  padding-bottom:6px;
+}
+
+#highscore-panel h2::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:1px;
+  background:rgba(255,255,255,0.6);
+}
+
+#highscore-panel ol{
+  list-style:none;
+  margin:0;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:0.2em;
+}
+
+#highscore-panel li{
+  display:grid;
+  grid-template-columns:28px 1fr 70px;
+  column-gap:10px;
+  font-weight:500;
+  color:#186595;
+  line-height:2;
+  align-items:center;
+}
+
+#highscore-panel .rank{
+  font-weight:600;
+  text-align:right;
+  color:rgba(24,101,149,0.85);
+}
+
+#highscore-panel .name{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+#highscore-panel .score{
+  width:70px;
+  font-variant-numeric:tabular-nums;
+  text-align:right;
 }

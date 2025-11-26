@@ -3,16 +3,52 @@ import { GAME_CONFIG } from './config.js';
 import { render, initRender } from './render.js';
 import { SEGMENTS } from './segments.js';
 import { SVG_READY } from './loadSvg.js';
+import { BUTTON_LIGHTS_READY, setButtonLight, pulseButtonLight } from './buttonLights.js';
 
-let state = createInitialState();
+function initRuntimeState(base){
+  if(!base) return base;
+  base.scoreOverride = null;
+  base.hideToilet = false;
+  base.hideToiletUntil = 0;
+  base.hidePlayer = false;
+  base.hidePlayerUntil = 0;
+  base.timeReportActive = false;
+  base.timeReportUntil = 0;
+  base.attractWalker = null;
+  return base;
+}
+
+let state = initRuntimeState(createInitialState());
 let audioCtx = null;
+let activeAlarmNodes = [];
 
 const dom = {
   leftBtn: null,
   rightBtn: null,
-  startBtn: null,
+  gameBtn: null,
+  timeBtn: null,
+  alarmBtn: null,
   score: null,
   scoreValue: null,
+  scoreLabel: null,
+};
+
+const KEY_GROUPS = {
+  left: new Set(['ArrowLeft', 'KeyA', 'a', 'A']),
+  right: new Set(['ArrowRight', 'KeyD', 'd', 'D']),
+  action: new Set([' ', 'Spacebar', 'Space', 'Enter', 'NumpadEnter']),
+};
+
+const ACTIVE_KEYS = {
+  left: new Set(),
+  right: new Set(),
+  action: new Set(),
+};
+
+const GROUP_TO_LIGHT = {
+  left: 'left',
+  right: 'right',
+  action: 'game',
 };
 
 const SOUND_PRESETS = {
@@ -48,24 +84,39 @@ const SOUND_PRESETS = {
   'move-blip': { freq: 1500, duration: 0.045, type: 'square', gain: 0.04 },
 };
 
+const TIME_MESSAGE_LINES = ['TIME', 'REPORT', 'NOW'];
+const TIME_MESSAGE_DURATION = 4000; // ms
+const ALARM_REPEAT_COUNT = 4;
+const ALARM_BASE_FREQ = 540;
+const ALARM_FREQ_STEP = 160;
+const ALARM_TONE_DURATION = 0.12; // seconds
+const ALARM_TONE_GAP = 0.04; // seconds
+
 
 function bindUi(){
   cacheDom();
   syncConsoleAspect();
-  window.addEventListener('keydown', handleKey, { passive: false });
-  dom.leftBtn?.addEventListener('pointerdown', ()=>{ moveLeft(); });
-  dom.rightBtn?.addEventListener('pointerdown', ()=>{ moveRight(); });
-  dom.startBtn?.addEventListener('click', ()=> requestStartGame());
-
+  window.addEventListener('keydown', handleKeyDown, { passive: false });
+  window.addEventListener('keyup', handleKeyUp, { passive: true });
+  window.addEventListener('blur', resetHeldKeys);
+  attachMomentaryButton(dom.leftBtn, 'left', moveLeft);
+  attachMomentaryButton(dom.rightBtn, 'right', moveRight);
+  attachMomentaryButton(dom.gameBtn, 'game', ()=> handleGameButtonPress({ allowMidgameRestart: true }));
+  attachMomentaryButton(dom.timeBtn, 'time', handleTimeButtonPress);
+  attachMomentaryButton(dom.alarmBtn, 'alarm', handleAlarmButtonPress);
   updateScoreHud();
+  BUTTON_LIGHTS_READY.catch(()=>{});
 }
 
 function cacheDom(){
-  dom.leftBtn = document.getElementById('leftBtn');
-  dom.rightBtn = document.getElementById('rightBtn');
-  dom.startBtn = document.getElementById('startBtn');
+  dom.leftBtn = document.getElementById('btn-left');
+  dom.rightBtn = document.getElementById('btn-right');
+  dom.gameBtn = document.getElementById('btn-game');
+  dom.timeBtn = document.getElementById('btn-time');
+  dom.alarmBtn = document.getElementById('btn-alarm');
   dom.score = document.getElementById('score-display');
   dom.scoreValue = dom.score ? dom.score.querySelector('.score-value') : null;
+  dom.scoreLabel = dom.score ? dom.score.querySelector('.score-label') : null;
 }
 
 function syncConsoleAspect(){
@@ -85,39 +136,78 @@ function syncConsoleAspect(){
   }
 }
 
-function handleKey(e){
-  const key = e.key;
-  const isMoveLeft = key === 'ArrowLeft' || key === 'a' || key === 'A';
-  const isMoveRight = key === 'ArrowRight' || key === 'd' || key === 'D';
-  const isAction = key === ' ' || key === 'Enter';
-
-  if(state.phase === GamePhase.ATTRACT || state.phase === GamePhase.GAME_OVER){
-    if(isAction){
-      e.preventDefault();
-      requestStartGame();
-      return;
-    }
+function handleKeyDown(e){
+  const group = getKeyGroup(e);
+  if(!group) return;
+  const keySet = ACTIVE_KEYS[group];
+  const keyId = getKeyIdentifier(e);
+  if(!keyId) return;
+  if(keySet.has(keyId)){
+    e.preventDefault();
+    return;
   }
+  keySet.add(keyId);
+  const lightId = GROUP_TO_LIGHT[group];
+  if(lightId) setButtonLight(lightId, true);
+  e.preventDefault();
 
-  if(!canControlPlayer()) return;
-
-  if(isMoveLeft){
-    e.preventDefault();
-    moveLeft();
-  } else if(isMoveRight){
-    e.preventDefault();
-    moveRight();
-  } else if(isAction){
-    e.preventDefault();
+  if(group === 'left'){
+    if(canControlPlayer()) moveLeft();
+  } else if(group === 'right'){
+    if(canControlPlayer()) moveRight();
+  } else if(group === 'action'){
+    handleKeyboardActionPress();
   }
+}
+
+function handleKeyUp(e){
+  const group = getKeyGroup(e);
+  if(!group) return;
+  const keySet = ACTIVE_KEYS[group];
+  const keyId = getKeyIdentifier(e);
+  if(!keyId || !keySet.has(keyId)) return;
+  keySet.delete(keyId);
+  if(keySet.size > 0) return;
+  const lightId = GROUP_TO_LIGHT[group];
+  if(lightId) setButtonLight(lightId, false);
+}
+
+function getKeyGroup(event){
+  const key = event?.key || '';
+  const code = event?.code || '';
+  if(matchesKeyGroup(KEY_GROUPS.left, key, code)) return 'left';
+  if(matchesKeyGroup(KEY_GROUPS.right, key, code)) return 'right';
+  if(matchesKeyGroup(KEY_GROUPS.action, key, code)) return 'action';
+  return null;
+}
+
+function matchesKeyGroup(groupSet, key, code){
+  if(groupSet.has(key)) return true;
+  if(code && groupSet.has(code)) return true;
+  return false;
+}
+
+function getKeyIdentifier(event){
+  return event?.code || event?.key || '';
+}
+
+function resetHeldKeys(){
+  Object.keys(ACTIVE_KEYS).forEach(group => {
+    const set = ACTIVE_KEYS[group];
+    if(set.size === 0) return;
+    set.clear();
+    const lightId = GROUP_TO_LIGHT[group];
+    if(lightId) setButtonLight(lightId, false);
+  });
 }
 
 function requestStartGame(){
   if(state.phase === GamePhase.STARTING) return;
   ensureAudioContext();
   const preservedHighScore = state.highScore || 0;
-  state = createInitialState();
+  state = initRuntimeState(createInitialState());
   state.highScore = preservedHighScore;
+  resetAuxDisplays();
   state.phase = GamePhase.STARTING;
   state.startBlink = {
     remaining: GAME_CONFIG.startBlinkCount * 2,
@@ -126,22 +216,52 @@ function requestStartGame(){
   };
   state.textDisplay = state.textDisplay || { new: true, game: true, over: false };
   setTextDisplay({ new: true, game: true, over: false });
-  setStartButtonVisible(false);
   playSound('start-fanfare');
   updateScoreHud();
 }
 
+function handleGameButtonPress(options = {}){
+  const allowMidgameRestart = options.allowMidgameRestart || false;
+  if(state.phase === GamePhase.PLAYING && !allowMidgameRestart){
+    // Action input will be wired to bucket interactions in a later milestone.
+    return;
+  }
+  requestStartGame();
+}
+
+function handleKeyboardActionPress(){
+  if(state.phase === GamePhase.ATTRACT || state.phase === GamePhase.GAME_OVER){
+    handleGameButtonPress();
+  }
+}
+
+function isGamePlaying(){
+  return state.phase === GamePhase.PLAYING;
+}
+
+function handleTimeButtonPress(){
+  if(isGamePlaying()) return;
+  showTimeReportMessage();
+}
+
+function handleAlarmButtonPress(){
+  if(isGamePlaying()) return;
+  playAlarmPattern();
+}
+
 function enterAttractMode(){
-  state = createInitialState();
+  state = initRuntimeState(createInitialState());
+  resetAuxDisplays();
   state.phase = GamePhase.ATTRACT;
   state.attractBlink.nextToggle = performance.now() + GAME_CONFIG.attractBlinkInterval;
+  initializeAttractWalker();
   setTextDisplay({ new: false, game: false, over: false });
-  setStartButtonVisible(true);
   updateScoreHud();
 }
 
 function finalizeGameplayStart(now){
   state.phase = GamePhase.PLAYING;
+  resetAuxDisplays();
   state.running = true;
   state.gameOver = false;
   state.bucketFilled = false;
@@ -174,9 +294,10 @@ function finalizeGameplayStart(now){
 }
 
 function update(now){
+  updateOverlayTimers(now);
   switch(state.phase){
     case GamePhase.ATTRACT:
-      updateAttract();
+      updateAttract(now);
       break;
     case GamePhase.STARTING:
       updateStarting(now);
@@ -192,8 +313,9 @@ function update(now){
   }
 }
 
-function updateAttract(){
+function updateAttract(now){
   setTextDisplay({ new: false, game: false, over: false });
+  updateAttractWalker(now);
 }
 
 function updateStarting(now){
@@ -478,7 +600,6 @@ function triggerGameOver(){
     nextToggle: performance.now() + GAME_CONFIG.gameOverBlinkInterval,
   };
   setTextDisplay({ game: true, over: true });
-  setStartButtonVisible(true);
   playSound('game-over');
 }
 
@@ -552,6 +673,38 @@ function initializeMushroomSchedule(){
   });
 }
 
+function initializeAttractWalker(){
+  const positions = SEGMENTS.playerPositions || [];
+  if(!positions.length){
+    state.attractWalker = null;
+    return;
+  }
+  const startIdx = 0;
+  const endIdx = Math.min(positions.length - 1, 3);
+  state.playerPos = startIdx;
+  if(endIdx <= startIdx){
+    state.attractWalker = null;
+    return;
+  }
+  const now = performance.now();
+  state.attractWalker = {
+    positions: [startIdx, endIdx],
+    index: 0,
+    interval: 1000,
+    nextToggle: now + 1000,
+  };
+}
+
+function updateAttractWalker(now){
+  const walker = state.attractWalker;
+  if(!walker || !walker.positions || walker.positions.length < 2) return;
+  if(!walker.nextToggle || now < walker.nextToggle) return;
+  walker.index = walker.index === 0 ? 1 : 0;
+  walker.nextToggle = now + (walker.interval || 1000);
+  const pos = walker.positions[walker.index] ?? 0;
+  state.playerPos = pos;
+}
+
 function moveLeft(){
   if(!canControlPlayer()) return;
   const prev = state.playerPos;
@@ -566,8 +719,72 @@ function moveRight(){
   if(state.playerPos !== prev) playSound('move-blip');
 }
 
+function showTimeReportMessage(){
+  setScoreOverride(TIME_MESSAGE_LINES, TIME_MESSAGE_DURATION);
+  const expiresAt = state.scoreOverride?.expiresAt || (performance.now() + TIME_MESSAGE_DURATION);
+  state.timeReportActive = true;
+  state.timeReportUntil = expiresAt;
+  suppressToiletUntil(expiresAt);
+  suppressPlayerUntil(expiresAt);
+}
+
+function setScoreOverride(lines, durationMs){
+  const safeLines = Array.isArray(lines) ? lines.filter(Boolean) : [String(lines || '')].filter(Boolean);
+  const now = performance.now();
+  state.scoreOverride = {
+    lines: safeLines,
+    expiresAt: durationMs ? now + durationMs : 0,
+  };
+  updateScoreHud();
+}
+
+function suppressToiletUntil(timestamp){
+  if(!timestamp) return;
+  state.hideToilet = true;
+  state.hideToiletUntil = Math.max(state.hideToiletUntil || 0, timestamp);
+}
+
+function suppressPlayerUntil(timestamp){
+  if(!timestamp) return;
+  state.hidePlayer = true;
+  state.hidePlayerUntil = Math.max(state.hidePlayerUntil || 0, timestamp);
+}
+
+function hasActiveScoreOverride(){
+  const override = state.scoreOverride;
+  if(!override) return false;
+  const lines = Array.isArray(override.lines) ? override.lines : [];
+  return lines.length > 0;
+}
+
+function resetAuxDisplays(){
+  state.scoreOverride = null;
+  state.hideToilet = false;
+  state.hideToiletUntil = 0;
+  state.hidePlayer = false;
+  state.hidePlayerUntil = 0;
+  state.timeReportActive = false;
+  state.timeReportUntil = 0;
+  state.attractWalker = null;
+  stopAlarmPattern();
+  updateScoreHud();
+}
+
 function updateScoreHud(){
   if(!dom.score) return;
+  const hasOverride = hasActiveScoreOverride();
+  if(hasOverride){
+    dom.score.style.display = 'flex';
+    if(dom.scoreLabel) dom.scoreLabel.classList.add('is-hidden');
+    if(dom.scoreValue){
+      dom.scoreValue.classList.add('is-message');
+      const lines = state.scoreOverride.lines || [];
+      dom.scoreValue.textContent = lines.join('\n');
+    }
+    return;
+  }
+  if(dom.scoreLabel) dom.scoreLabel.classList.remove('is-hidden');
+  if(dom.scoreValue) dom.scoreValue.classList.remove('is-message');
   const showScore = state.phase === GamePhase.PLAYING || state.phase === GamePhase.GAME_OVER;
   dom.score.style.display = showScore ? 'flex' : 'none';
   if(!showScore || !dom.scoreValue) return;
@@ -575,14 +792,33 @@ function updateScoreHud(){
   dom.scoreValue.textContent = raw === 0 ? '0' : String(Math.min(999, raw));
 }
 
-function setStartButtonVisible(show){
-  if(!dom.startBtn) return;
-  dom.startBtn.classList.toggle('hidden', !show);
-}
-
 function setTextDisplay(values){
   state.textDisplay = state.textDisplay || { new: false, game: false, over: false };
   Object.assign(state.textDisplay, values);
+}
+
+function updateOverlayTimers(now){
+  let needsHudRefresh = false;
+  if(state.scoreOverride && state.scoreOverride.expiresAt && now >= state.scoreOverride.expiresAt){
+    state.scoreOverride = null;
+    needsHudRefresh = true;
+  }
+  if(state.hideToilet && state.hideToiletUntil && now >= state.hideToiletUntil){
+    state.hideToilet = false;
+    state.hideToiletUntil = 0;
+  }
+  if(state.hidePlayer && state.hidePlayerUntil && now >= state.hidePlayerUntil){
+    state.hidePlayer = false;
+    state.hidePlayerUntil = 0;
+  }
+  if(state.timeReportActive){
+    const target = state.timeReportUntil || state.scoreOverride?.expiresAt || 0;
+    if(!target || now >= target){
+      state.timeReportActive = false;
+      state.timeReportUntil = 0;
+    }
+  }
+  if(needsHudRefresh) updateScoreHud();
 }
 
 function stageDuration(){
@@ -620,6 +856,27 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 
+function attachMomentaryButton(el, lightId, onPress){
+  if(!el) return;
+  const release = (event)=>{
+    if(event && typeof event.pointerId === 'number' && el.releasePointerCapture){
+      try{ el.releasePointerCapture(event.pointerId); }catch(_err){ /* ignore */ }
+    }
+    setButtonLight(lightId, false);
+  };
+  el.addEventListener('pointerdown', (event)=>{
+    event.preventDefault();
+    if(typeof event.pointerId === 'number' && el.setPointerCapture){
+      try{ el.setPointerCapture(event.pointerId); }catch(_err){ /* ignore */ }
+    }
+    setButtonLight(lightId, true);
+    onPress?.();
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(type => {
+    el.addEventListener(type, release, { passive: true });
+  });
+}
+
 function ensureAudioContext(){
   if(audioCtx) return;
   const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -644,8 +901,33 @@ function playSound(name){
   }
 }
 
-function createTone(freq, duration, type, gainValue, startTime){
+function playAlarmPattern(){
+  ensureAudioContext();
   if(!audioCtx) return;
+  stopAlarmPattern();
+  const start = audioCtx.currentTime + 0.01;
+  const collector = [];
+  for(let i = 0; i < ALARM_REPEAT_COUNT; i += 1){
+    const freq = ALARM_BASE_FREQ + i * ALARM_FREQ_STEP;
+    const when = start + i * (ALARM_TONE_DURATION + ALARM_TONE_GAP);
+    createTone(freq, ALARM_TONE_DURATION, 'square', 0.12, when, collector);
+  }
+  activeAlarmNodes = collector;
+}
+
+function stopAlarmPattern(){
+  if(!activeAlarmNodes.length || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  activeAlarmNodes.forEach(({ osc }) => {
+    try {
+      if(osc) osc.stop(now + 0.01);
+    } catch(_err){ /* ignore */ }
+  });
+  activeAlarmNodes = [];
+}
+
+function createTone(freq, duration, type, gainValue, startTime, collector){
+  if(!audioCtx) return null;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = type;
@@ -654,7 +936,10 @@ function createTone(freq, duration, type, gainValue, startTime){
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
   osc.connect(gain).connect(audioCtx.destination);
   osc.start(startTime);
-  osc.stop(startTime + duration + 0.05);
+  const stopTime = startTime + duration + 0.05;
+  osc.stop(stopTime);
+  if(Array.isArray(collector)) collector.push({ osc, stopTime });
+  return osc;
 }
 
 if(typeof document !== 'undefined'){

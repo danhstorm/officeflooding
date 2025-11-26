@@ -7,11 +7,34 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div id="highscore-panel" aria-label="High score list">
+    <h1>HIGH SCORE</h1>
+    <ol>
+      <li><span class="rank">1</span><span class="name">AMY</span><span class="score">1740</span></li>
+      <li><span class="rank">2</span><span class="name">BEN</span><span class="score">1630</span></li>
+      <li><span class="rank">3</span><span class="name">CARLA</span><span class="score">1585</span></li>
+      <li><span class="rank">4</span><span class="name">DEV</span><span class="score">1490</span></li>
+      <li><span class="rank">5</span><span class="name">ELLA</span><span class="score">1410</span></li>
+      <li><span class="rank">6</span><span class="name">FINN</span><span class="score">1380</span></li>
+      <li><span class="rank">7</span><span class="name">GINA</span><span class="score">1305</span></li>
+      <li><span class="rank">8</span><span class="name">HUGO</span><span class="score">1275</span></li>
+      <li><span class="rank">9</span><span class="name">IVY</span><span class="score">1190</span></li>
+      <li><span class="rank">10</span><span class="name">JAX</span><span class="score">1125</span></li>
+    </ol>
+  </div>
   <main>
     <div id="game-wrapper">
       <div id="console">
         <!-- Console artwork floats above the desk background -->
         <img id="console-bg" src="img/OFFICE_FLOODING_console.png" alt="Office Flooding console">
+        <div id="button-lights" aria-hidden="true"></div>
+
+        <!-- Invisible hit areas that match the physical buttons -->
+        <button id="btn-left" class="console-btn" type="button" aria-label="Move left"></button>
+        <button id="btn-right" class="console-btn" type="button" aria-label="Move right"></button>
+        <button id="btn-game" class="console-btn" type="button" aria-label="Game button"></button>
+        <button id="btn-time" class="console-btn" type="button" aria-label="Time button"></button>
+        <button id="btn-alarm" class="console-btn" type="button" aria-label="Alarm button"></button>
 
           <!-- LCD container positioned with CSS percentages -->
             <div id="lcd">
@@ -98,11 +121,6 @@
             <span class="score-value">00</span>
           </div>
         </div>
-
-        <!-- Side Controls (left/right) — visible buttons for touch/mouse -->
-        <button id="leftBtn" class="side-btn left" aria-label="Left">◀</button>
-        <button id="rightBtn" class="side-btn right" aria-label="Right">▶</button>
-        <button id="startBtn" class="start-btn" type="button">START</button>
       </div>
     </div>
   </main>
