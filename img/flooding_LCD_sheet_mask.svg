@@ -65,4 +65,9 @@
   <polygon id="mush2" class="st1" points="2476.3 726.8 2429 729.5 2436 659.1 2476.3 655.8 2502.7 683.2 2502.7 722 2476.3 726.8"/>
   <polygon id="mush1" class="st1" points="2488.2 729.5 2441.4 729.5 2423.6 755.8 2434.4 775.2 2497.3 781.1 2488.2 729.5"/>
   <rect id="outer_frame" class="st0" width="3427" height="2262"/>
+  <ellipse id="left" class="st1" cx="406.8" cy="1653.8" rx="188" ry="185.3"/>
+  <ellipse id="right" class="st1" cx="3010" cy="1656.9" rx="188" ry="185.3"/>
+  <rect id="game1" data-name="game" class="st1" x="2943.4" y="735.3" width="191.2" height="99.3"/>
+  <rect id="time" class="st1" x="2943.4" y="579.3" width="191.2" height="99.3"/>
+  <rect id="alarm" class="st1" x="2939.3" y="422.6" width="191.2" height="99.3"/>
 </svg>

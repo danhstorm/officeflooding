@@ -12,7 +12,6 @@ function segmentElement(id){
 export function segOn(id){
   const el = segmentElement(id);
   if(!el) return;
-  activeSegments.add(id);
   if(el.dataset.segmentGroup === '1' || (el.id && el.id.startsWith(SEGMENT_PREFIX))){
     el.style.display = '';
   } else {
@@ -22,7 +21,6 @@ export function segOn(id){
 }
 
 export function segOff(id){
-  activeSegments.delete(id);
   const el = segmentElement(id);
   if(!el) return;
   if(el.dataset.segmentGroup === '1' || (el.id && el.id.startsWith(SEGMENT_PREFIX))){
@@ -35,7 +33,6 @@ export function segOff(id){
 
 export function clearAllSegments(){
   ALL_SEGMENT_IDS.forEach(id => segOff(id));
-  activeSegments.clear();
 }
 
 export function render(state){

@@ -48,12 +48,6 @@ const SOUND_PRESETS = {
   'move-blip': { freq: 1500, duration: 0.045, type: 'square', gain: 0.04 },
 };
 
-const LCD_VAR_DEFAULTS = Object.freeze({
-  left: '0%',
-  top: '0%',
-  width: '100%',
-  height: '100%'
-});
 
 function bindUi(){
   cacheDom();
@@ -397,6 +391,7 @@ function resetActiveDrops(){
 }
 
 function clearCracksAndDropsAfterMiss(){
+  const keepCracksLit = state.phase === GamePhase.GAME_OVER;
   state.drops = [];
   state.leaks.forEach(leak => {
     leak.pendingDrop = false;
@@ -409,8 +404,17 @@ function clearCracksAndDropsAfterMiss(){
     leak.warningPhase = 'idle';
     leak.warningBlinkRemaining = 0;
   });
-  state.crackWarnings = [false,false,false,false];
+  if(!keepCracksLit) state.crackWarnings = [false,false,false,false];
   state.lastDropCol = null;
+}
+
+function lightAllCracks(){
+  const crackCount = Math.max(
+    Array.isArray(SEGMENTS.cracks) ? SEGMENTS.cracks.length : 0,
+    Array.isArray(state.crackWarnings) ? state.crackWarnings.length : 0,
+    4
+  );
+  state.crackWarnings = Array(crackCount).fill(true);
 }
 
 function readyForNextDrop(){
@@ -467,6 +471,7 @@ function triggerGameOver(){
   state.running = false;
   state.gameOver = true;
   state.highScore = Math.max(state.highScore || 0, state.score || 0);
+  lightAllCracks();
   state.gameOverBlink = {
     remaining: GAME_CONFIG.gameOverBlinkCount * 2,
     on: true,

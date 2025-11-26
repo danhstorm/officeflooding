@@ -148,9 +148,6 @@ main{
 .side-btn.left{ left: 2%; }
 .side-btn.right{ right: 2%; }
 
-/* Debug helper: add .debug-lcd to #lcd to see its box and help align coordinates */
-#lcd.debug{ outline: 2px dashed rgba(255,255,255,0.6); }
-
 /* LCD overlay blending + opacity to let background texture show through */
 #lcd-overlay{
   mix-blend-mode: darken;
@@ -159,9 +156,6 @@ main{
   position: absolute;
   left: inherit; top: inherit; width: inherit; height: inherit;
 }
-
-/* small info HUD */
-#lcd-info{ min-width:140px }
 
 #lcd #score-display{
   position:absolute;
@@ -237,18 +231,10 @@ main{
 
 @media (max-width:520px){
   .side-btn{ width:48px;height:48px;font-size:20px }
-  #debugToggle{ display:none }
 }
-
-/* Alignment panel small responsive tweaks */
-#align-panel input, #align-panel select{ background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); color:#fff; padding:4px; border-radius:4px }
-#align-panel button{ background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); color:#fff; border-radius:4px }
 
 /* Hidden-by-default SVG segments; scripts toggle via style.display */
 .lcd-seg{ display:none }
-
-/* Debug helper */
-#lcd.debug{ outline: 2px dashed rgba(255,255,255,0.12) }
 
 @media (max-width:520px){
   #controls button{ font-size:18px; padding:10px 18px }
