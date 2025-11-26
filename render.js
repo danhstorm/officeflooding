@@ -93,7 +93,12 @@ export function render(state){
     }
   }
 
-  if(Array.isArray(state.crackWarnings)){
+  if(state.gameOver){
+    // When game is over, show all cracks
+    SEGMENTS.cracks.forEach(id => {
+      if(id) segOn(id);
+    });
+  } else if(Array.isArray(state.crackWarnings)){
     state.crackWarnings.forEach((on, idx) => {
       if(on){
         const id = SEGMENTS.cracks[idx];
