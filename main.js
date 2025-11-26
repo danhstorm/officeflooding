@@ -45,10 +45,19 @@ const SOUND_PRESETS = {
     { freq: 960, duration: 0.12 },
   ], type: 'triangle', gain: 0.08 },
   score: { freq: 950, duration: 0.12, type: 'triangle', gain: 0.08 },
+  'move-blip': { freq: 1500, duration: 0.045, type: 'square', gain: 0.04 },
 };
+
+const LCD_VAR_DEFAULTS = Object.freeze({
+  left: '0%',
+  top: '0%',
+  width: '100%',
+  height: '100%'
+});
 
 function bindUi(){
   cacheDom();
+  syncConsoleAspect();
   window.addEventListener('keydown', handleKey, { passive: false });
   dom.leftBtn?.addEventListener('pointerdown', ()=>{ moveLeft(); });
   dom.rightBtn?.addEventListener('pointerdown', ()=>{ moveRight(); });
@@ -63,6 +72,23 @@ function cacheDom(){
   dom.startBtn = document.getElementById('startBtn');
   dom.score = document.getElementById('score-display');
   dom.scoreValue = dom.score ? dom.score.querySelector('.score-value') : null;
+}
+
+function syncConsoleAspect(){
+  const root = document.documentElement;
+  const img = document.getElementById('console-bg');
+  if(!img || !root) return;
+  const applyRatio = ()=>{
+    if(!img.naturalWidth || !img.naturalHeight) return;
+    const ratio = img.naturalWidth / img.naturalHeight;
+    if(!ratio || !isFinite(ratio)) return;
+    root.style.setProperty('--console-aspect', ratio.toString());
+  };
+  if(img.complete){
+    applyRatio();
+  } else {
+    img.addEventListener('load', applyRatio, { once: true });
+  }
 }
 
 function handleKey(e){
@@ -523,12 +549,16 @@ function initializeMushroomSchedule(){
 
 function moveLeft(){
   if(!canControlPlayer()) return;
+  const prev = state.playerPos;
   state.playerPos = Math.max(0, state.playerPos - 1);
+  if(state.playerPos !== prev) playSound('move-blip');
 }
 
 function moveRight(){
   if(!canControlPlayer()) return;
+  const prev = state.playerPos;
   state.playerPos = Math.min(SEGMENTS.playerPositions.length - 1, state.playerPos + 1);
+  if(state.playerPos !== prev) playSound('move-blip');
 }
 
 function updateScoreHud(){

@@ -5,7 +5,7 @@
 import { ALL_SEGMENT_IDS } from './segments.js';
 
 const SVG_URL = 'img/flooding_LCD_sheet_mask.svg';
-const PNG_TEXTURE_URL = 'img/flooding_LCD_sheet.png';
+const PNG_TEXTURE_URL = 'img/LCD.png';
 const XLINK_NS = 'http://www.w3.org/1999/xlink';
 const SEGMENT_PREFIX = 'segment-';
 const CLIP_PREFIX = 'clip-';
@@ -21,7 +21,18 @@ export async function loadAndInlineSvg(targetSelector = '#svg-root'){
   target.innerHTML = text;
 
   const svg = target.querySelector('svg');
-  if(svg && !svg.id) svg.id = 'lcd-sheet';
+  if(svg){
+    if(!svg.id) svg.id = 'lcd-sheet';
+    svg.setAttribute('preserveAspectRatio', 'none');
+    const helperFrame = svg.querySelector('#outer_frame');
+    if(helperFrame){
+      helperFrame.setAttribute('opacity', '0');
+      helperFrame.setAttribute('display', 'none');
+      helperFrame.style.display = 'none';
+      helperFrame.style.visibility = 'hidden';
+      helperFrame.setAttribute('pointer-events', 'none');
+    }
+  }
   return svg || null;
 }
 

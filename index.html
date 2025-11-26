@@ -10,15 +10,15 @@
   <main>
     <div id="game-wrapper">
       <div id="console">
-        <!-- Console background fills the wrapper -->
-        <img id="console-bg" src="img/OFFICE%20FLOODING%20BG.jpg" alt="console background">
+        <!-- Console artwork floats above the desk background -->
+        <img id="console-bg" src="img/OFFICE_FLOODING_console.png" alt="Office Flooding console">
 
           <!-- LCD container positioned with CSS percentages -->
             <div id="lcd">
           <!-- SVG root: placeholder is present so the game can run; loadSvg.js
             will attempt to replace its contents with the real SVG from img/. -->
           <div id="svg-root">
-          <svg id="lcd-sheet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" preserveAspectRatio="xMidYMid meet" role="img">
+          <svg id="lcd-sheet" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160" preserveAspectRatio="none" role="img">
             <defs>
               <style> .seg { fill:black; opacity:0; transition: opacity 120ms linear; } </style>
             </defs>

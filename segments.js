@@ -74,7 +74,6 @@ export const SEGMENTS = {
     "mush10",
     "mush11",
     "mush12",
-    "mush13",
   ],
 };
 
